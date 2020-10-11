@@ -245,5 +245,6 @@ Outputs:
         !Sub  ${AWS::StackName}-${VPC.SubnetId}
   S3BucketURL:
     Value: !Sub ${S3Bucket.WebsiteURL}
-
-    
+    Export:
+      - Name:
+        !Sub  ${AWS::StackName}-${S3Bucket.WebsiteURL}

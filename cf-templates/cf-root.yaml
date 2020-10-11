@@ -6,6 +6,13 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: cf-templates/cf-vpc.yaml
+      TimeoutInMinutes: '10'
+Outputs:
+  StackRef:
+    Value: !Ref VPC
+  OutputFromNestedStack:
+    Value: !GetAtt VPC.Outputs.S3BucketURL
+
 #  S3Bucket:
 #    Type: AWS::CloudFormation::Stack
 #    Properties:
