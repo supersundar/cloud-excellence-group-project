@@ -5,7 +5,7 @@ Resources:
   VPC:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://github.com/dskarbrevik/cloud-excellence-group-project/blob/CF/cf-templates/cf-vpc.yaml
+      TemplateURL: cf-templates/cf-vpc.yaml
 #  S3Bucket:
 #    Type: AWS::CloudFormation::Stack
 #    Properties:
