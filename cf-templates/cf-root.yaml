@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This is the root template that references all other nested templates
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://github.com/dskarbrevik/cloud-excellence-group-project/blob/CF/cf-vpc.yaml
+#  S3Bucket:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#s      TemplateURL: https://github.com/dskarbrevik/cloud-excellence-group-project/tree/main/cf-bucket.yaml
