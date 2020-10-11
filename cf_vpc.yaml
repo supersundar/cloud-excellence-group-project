@@ -8,7 +8,7 @@ Parameters:
   VpcCidr:
     Type: String
     AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
-    Default: 10.0.0.0/22
+    Default: 10.0.0.0/16
 
   PublicSubnetCidr:
     Type: String
@@ -65,11 +65,15 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: !Ref VpcCidr
+      InstanceTenancy: default
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: VPC
+          Value: GregsTestVPC
+        - Key: VPCSubnetCidr
+          Value: !Ref VpcCidr
+
 
   IGW:
     Type: AWS::EC2::InternetGateway
@@ -77,10 +81,18 @@ Resources:
       Tags:
         - Key: Name
           Value: Inet GW
+        - Key: VPCOwner
+          Value: GregsTestVPC
   EIP:
     Type: 'AWS::EC2::EIP'
     Properties:
       Domain: vpc
+      Tags:
+        - Key: Name
+          Value: EIP for Nat GW
+        - Key: VPCOwner
+          Value: GregsTestVPC
+
 
   NatGW:
     Type: AWS::EC2::NatGateway
@@ -90,19 +102,15 @@ Resources:
       Tags:
         - Key: Name
           Value: NAT GW
-
-
-#  PublicSubnetToIGWConnection:
-#    Type: AWS::EC2::GatewayRouteTableAssociation
-#    Properties:
-#      GatewayId: !Ref IGW
-#      RouteTableId: !Ref PublicRouteTable
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
   VPCtoIGWConnection:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref IGW
       VpcId: !Ref VPC
+
 
 ###########
 # Public Subnet
@@ -114,6 +122,7 @@ Resources:
       VpcId: !Ref VPC
       MapPublicIpOnLaunch: true
       CidrBlock: !Ref PublicSubnetCidr
+#      AvailabilityZone: Fn::Select [0, Fn::GetAZs Ref: AWS::Region]
       AvailabilityZone: !Select
         - 0
         - !GetAZs
@@ -121,6 +130,8 @@ Resources:
       Tags:
         - Key: Name
           Value: Public Subnet
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
   PublicRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -139,6 +150,8 @@ Resources:
       Tags:
         - Key: Name
           Value: Public Route Table
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
   DefaultPublicRoute:
     Type: AWS::EC2::Route
@@ -158,6 +171,8 @@ Resources:
       Tags:
         - Key: Name
           Value: Private Route Table
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
   DefaultPrivateRoute:
     Type: AWS::EC2::Route
@@ -183,6 +198,8 @@ Resources:
       Tags:
         - Key: Name
           Value: Private Subnet
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
   PrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -215,6 +232,9 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: /
+      Tags:
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
 ###########
 # App Security Group
@@ -242,6 +262,8 @@ Resources:
       Tags:
         - Key: Name
           Value: App Cidr Group
+        - Key: VPCOwner
+          Value: GregsTestVPC
 
 ###########
 # Outputs
@@ -251,3 +273,5 @@ Outputs:
 
   VPCDefaultSecurityGroup:
     Value: !Sub ${VPC.DefaultSecurityGroup}
+  S3BucketURL:
+    Value: !Sub ${S3Bucket.WebsiteURL}
