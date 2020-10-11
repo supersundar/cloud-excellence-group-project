@@ -5,7 +5,7 @@ Resources:
   VPC:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: cf-templates/cf-vpc.yaml
+      TemplateURL: https://s3.amazonaws.com/cf-templates/cf-vpc.yaml
       TimeoutInMinutes: '10'
 Outputs:
   StackRef:
