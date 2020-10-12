@@ -1,259 +1,156 @@
-AWSTemplateFormatVersion: 2010-09-09
-Description: Gregs-TestVPC
+# Usage:
+#   aws cloudformation --region <region> create-stack --stack-name <stack name> --template-body file://vpc-pubprisubnet.yaml
 
-# VPC with public & private subnet and Internet an NAT Gateway
-
-Parameters:
-
-  VpcCidr:
-    Type: String
-    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
-    Default: 10.0.0.0/16
-
-  PublicSubnetCidr:
-    Type: String
-    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
-    Default: 10.0.2.0/23
-
-  PrivateSubnetCidr:
-    Type: String
-    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
-    Default: 10.0.0.0/26
-
+# This template will:
+#   Create a VPC with:
+#       1 Public Subnets
+#       1 Private Subnets
+#   An Internet Gateway (with routes to it for Public Subnets)
+#   A NAT Gateway for outbound access (with routes from Private Subnets set to use it)
+#
 Resources:
-
-###########
-# VPC with Nat and Internet Gateways
-###########
-
-  VPC:
-    Type: AWS::EC2::VPC
+  PubPrivateVPC:
+    Type: 'AWS::EC2::VPC'
     Properties:
-      CidrBlock: !Ref VpcCidr
-      InstanceTenancy: default
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: GregsTestVPC
-        - Key: VPCSubnetCidr
-          Value: !Ref VpcCidr
+      CidrBlock: 10.0.0.0/16
 
-
-  IGW:
-    Type: AWS::EC2::InternetGateway
+  PublicSubnet1:
+    Type: 'AWS::EC2::Subnet'
     Properties:
-      Tags:
-        - Key: Name
-          Value: Inet GW
-        - Key: VPCOwner
-          Value: GregsTestVPC
-  EIP:
-    Type: 'AWS::EC2::EIP'
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: EIP for Nat GW
-        - Key: VPCOwner
-          Value: GregsTestVPC
-
-
-  NatGW:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt 'EIP.AllocationId'
-      SubnetId: !Ref PublicSubnet
-      Tags:
-        - Key: Name
-          Value: NAT GW
-        - Key: VPCOwner
-          Value: GregsTestVPC
-
-  VPCtoIGWConnection:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId: !Ref IGW
-      VpcId: !Ref VPC
-
-
-###########
-# Public Subnet
-###########
-
-  PublicSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref PubPrivateVPC
+      AvailabilityZone: us-east-2a
+      CidrBlock: 10.0.2.0/23
       MapPublicIpOnLaunch: true
-      CidrBlock: !Ref PublicSubnetCidr
-#      AvailabilityZone: Fn::Select [0, Fn::GetAZs Ref: AWS::Region]
-      AvailabilityZone: !Select
-        - 0
-        - !GetAZs
-          Ref: AWS::Region
-      Tags:
-        - Key: Name
-          Value: Public Subnet
-        - Key: VPCOwner
-          Value: GregsTestVPC
 
-  PublicRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
+  PrivateSubnet1:
+    Type: 'AWS::EC2::Subnet'
     Properties:
-      RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnet
+      VpcId: !Ref PubPrivateVPC
+      AvailabilityZone: us-east-2a
+      CidrBlock: 10.0.0.0/26
+      MapPublicIpOnLaunch: false
 
-###########
-# Public Route Table
-###########
+  InternetGateway:
+        Type: 'AWS::EC2::InternetGateway'
+        Properties:
+          Tags:
+            - Key: Name
+              Value: !Join [_, [!Ref 'AWS::StackName']]
+            - Key: Network
+              Value: Public
+
+  GatewayToInternet:
+        Type: 'AWS::EC2::VPCGatewayAttachment'
+        Properties:
+          VpcId: !Ref PubPrivateVPC
+          InternetGatewayId: !Ref InternetGateway
 
   PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: Public Route Table
-        - Key: VPCOwner
-          Value: GregsTestVPC
+        Type: 'AWS::EC2::RouteTable'
+        Properties:
+          VpcId: !Ref PubPrivateVPC
+          Tags:
+            - Key: Network
+              Value: Public
 
-  DefaultPublicRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref IGW
-      RouteTableId: !Ref PublicRouteTable
+  PublicRoute:
+        Type: 'AWS::EC2::Route'
+        DependsOn: GatewayToInternet
+        Properties:
+          RouteTableId: !Ref PublicRouteTable
+          DestinationCidrBlock: 0.0.0.0/0
+          GatewayId: !Ref InternetGateway
 
-###########
-# Private Route Table
-###########
+  PublicSubnet1RouteTableAssociation:
+        Type: 'AWS::EC2::SubnetRouteTableAssociation'
+        Properties:
+          SubnetId: !Ref PublicSubnet1
+          RouteTableId: !Ref PublicRouteTable
+
+  NatGateway:
+        Type: "AWS::EC2::NatGateway"
+        DependsOn: NatPublicIP
+        Properties:
+          AllocationId: !GetAtt NatPublicIP.AllocationId
+          SubnetId: !Ref PublicSubnet1
+
+  NatPublicIP:
+        Type: "AWS::EC2::EIP"
+        DependsOn: PubPrivateVPC
+        Properties:
+          Domain: vpc
 
   PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: Private Route Table
-        - Key: VPCOwner
-          Value: GregsTestVPC
+        Type: 'AWS::EC2::RouteTable'
+        Properties:
+          VpcId: !Ref PubPrivateVPC
+          Tags:
+            - Key: Network
+              Value: Private
 
-  DefaultPrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGW
-      RouteTableId: !Ref PrivateRouteTable
+  PrivateRoute:
+        Type: 'AWS::EC2::Route'
+        Properties:
+          RouteTableId: !Ref PrivateRouteTable
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: !Ref NatGateway
 
-###########
-# Private Subnet
-###########
-
-  PrivateSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      MapPublicIpOnLaunch: true
-      CidrBlock: !Ref PrivateSubnetCidr
-      AvailabilityZone: !Select
-        - 0
-        - !GetAZs
-          Ref: AWS::Region
-      Tags:
-        - Key: Name
-          Value: Private Subnet
-        - Key: VPCOwner
-          Value: GregsTestVPC
-
-  PrivateRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      SubnetId: !Ref PrivateSubnet
-
-###########
-# IAM Role for Instance
-###########
-
-  InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles: [!Ref AppRole]
-      InstanceProfileName: App-Role
-
-  AppRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: ElasticBeanstalk-Role
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Path: /
-      Tags:
-        - Key: VPCOwner
-          Value: GregsTestVPC
+  PrivateSubnet1RouteTableAssociation:
+        Type: 'AWS::EC2::SubnetRouteTableAssociation'
+        Properties:
+          SubnetId: !Ref PrivateSubnet1
+          RouteTableId: !Ref PrivateRouteTable
 
 ###########
 # Security Groups
 ###########
 
   PublicSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: pubSecGrp
-      GroupDescription: Enable access to Elastic Beanstalk and Bashtion Host in Public Net
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: Public Security Group
-        - Key: VPCOwner
-          Value: GregsTestVPC
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+          GroupName: pubSecGrp
+          GroupDescription: Enable access to Elastic Beanstalk and Bashtion Host in Public Net
+          VpcId: !Ref PubPrivateVPC
+          SecurityGroupIngress:
+              - IpProtocol: tcp
+                FromPort: 80
+                ToPort: 80
+                CidrIp: 0.0.0.0/0
+              - IpProtocol: tcp
+                FromPort: 443
+                ToPort: 443
+                CidrIp: 0.0.0.0/0
+              - IpProtocol: tcp
+                FromPort: 22
+                ToPort: 22
+                CidrIp: 0.0.0.0/0
+          Tags:
+              - Key: Name
+                Value: Public Security Group
 
   PrivateSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupName: privSecGrp
-      GroupDescription: Enable access to ECS Cluster and Bashtion Host in Public Net
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: Public Security Group
-        - Key: VPCOwner
-          Value: GregsTestVPC
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+          GroupName: privSecGrp
+          GroupDescription: Enable access to ECS Cluster and Bashtion Host in Public Net
+          VpcId: !Ref PubPrivateVPC
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 443
+              ToPort: 443
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+          Tags:
+              - Key: Name
+                Value: Public Security Group
+
 
 ###########
 # Outputs
@@ -262,29 +159,19 @@ Resources:
 Outputs:
 
   VPCDefaultSecurityGroup:
-    Value: !Sub ${VPC.DefaultSecurityGroup}
+    Value: !Sub ${PubPrivateVPC.DefaultSecurityGroup}
 
   VpcId:
-    Value: !Sub ${PublicSubnet.VpcId}
+    Value: !Sub ${PublicSubnet1.VpcId}
 
   PublicSubnetId:
-    Value: !Ref PublicSubnet
+    Value: !Ref PublicSubnet1
 
   PrivateSubnetId:
-    Value: !Ref PrivateSubnet
+    Value: !Ref PrivateSubnet1
 
   PrivateSecurityGroup:
     Value: !Ref PrivateSecurityGroup
 
   PublicSecurityGroup:
     Value: !Ref PublicSecurityGroup
-
-#    Export:
-#      - Name:
-#        Fn::Sub  ${PublicSubnet.VpcId}
-
-#  S3BucketURL:
-#    Value: !Sub ${S3Bucket.WebsiteURL}
-#    Export:
-#      - Name:
-#        Fn::Sub  ${AWS::StackName}-${S3Bucket.WebsiteURL}
