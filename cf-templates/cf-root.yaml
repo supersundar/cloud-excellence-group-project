@@ -1,3 +1,10 @@
+#
+# usage:
+# aws cloudformation package --template-file cf-root.yaml --output-template cf-packaged.yaml --s3-bucket team1-cicd-pipeline-staging
+# aws cloudformation deploy --template-file ./cf-packaged.yaml --stack-name <StackName> --parameter-overrides VpcCidr='10.0.0.0/16' PublicSubnetCidr=10.0.0.0/26 PrivateSubnetCidr=10.0.2.0/23 --capabilities  CAPABILITY_NAMED_IAM
+#
+# or check in ./cf-package.yaml and the CICDPipeline will pick it up and deploy the Environment
+#
 AWSTemplateFormatVersion: 2010-09-09
 Description: This is the root template that references all other nested templates
 
@@ -20,6 +27,19 @@ Resources:
 #    Properties:
 #      TemplateURL: ./cf-ecs.yaml
 #      TimeoutInMinutes: '10'
+
+#  PrivateBashtionHost:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: ./cf-bashtion.yaml
+#      TimeoutInMinutes: '10'
+
+#  PrivateBashtionHost:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: ./cf-bashtion.yaml
+#      TimeoutInMinutes: '10'
+
 
 Outputs:
   StackRef:
