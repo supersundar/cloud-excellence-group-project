@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This is the root template that references all other nested templates
+Outputs:
+  PrivateSecurityGroup:
+    Value:
+      Fn::Sub: ${VPC.Outputs.PrivateSecurityGroup}
+  PrivateSubnetId:
+    Value:
+      Fn::Sub: ${VPC.Outputs.PrivateSubnetId}
+  PublicSecurityGroup:
+    Value:
+      Fn::Sub: ${VPC.Outputs.PublicSecurityGroup}
+  PublicSubnetId:
+    Value:
+      Fn::Sub: ${VPC.Outputs.PublicSubnetId}
+  StackRef:
+    Value:
+      Ref: VPC
+  VPCId:
+    Value:
+      Fn::Sub: ${VPC.Outputs.VpcId}
+Resources:
+  VPC:
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/team1-cicd-pipeline-staging/641ae65f7c1ac69489d856cc839913ad.template
+      TimeoutInMinutes: '10'
+    Type: AWS::CloudFormation::Stack
