@@ -186,7 +186,7 @@ Resources:
   AppRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: App-Role
+      RoleName: ElasticBeanstalk-Role
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -202,14 +202,14 @@ Resources:
           Value: GregsTestVPC
 
 ###########
-# App Security Group
+# Security Groups
 ###########
 
-  AppSecurityGroup:
+  PublicSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: App
-      GroupDescription: Enable access to App
+      GroupName: pubSecGrp
+      GroupDescription: Enable access to Elastic Beanstalk and Bashtion Host in Public Net
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -226,7 +226,32 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: App Cidr Group
+          Value: Public Security Group
+        - Key: VPCOwner
+          Value: GregsTestVPC
+
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: privSecGrp
+      GroupDescription: Enable access to ECS Cluster and Bashtion Host in Public Net
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: Public Security Group
         - Key: VPCOwner
           Value: GregsTestVPC
 
@@ -238,13 +263,28 @@ Outputs:
 
   VPCDefaultSecurityGroup:
     Value: !Sub ${VPC.DefaultSecurityGroup}
-  VPCSubnetId:
-    Value: !Sub ${VPC.SubnetId}
-    Export:
-      - Name:
-        !Sub  ${AWS::StackName}-${VPC.SubnetId}
-  S3BucketURL:
-    Value: !Sub ${S3Bucket.WebsiteURL}
-    Export:
-      - Name:
-        !Sub  ${AWS::StackName}-${S3Bucket.WebsiteURL}
+
+  VpcId:
+    Value: !Sub ${PublicSubnet.VpcId}
+
+  PublicSubnetId:
+    Value: !Ref PublicSubnet
+
+  PrivateSubnetId:
+    Value: !Ref PrivateSubnet
+
+  PrivateSecurityGroup:
+    Value: !Ref PrivateSecurityGroup
+
+  PublicSecurityGroup:
+    Value: !Ref PublicSecurityGroup
+
+#    Export:
+#      - Name:
+#        Fn::Sub  ${PublicSubnet.VpcId}
+
+#  S3BucketURL:
+#    Value: !Sub ${S3Bucket.WebsiteURL}
+#    Export:
+#      - Name:
+#        Fn::Sub  ${AWS::StackName}-${S3Bucket.WebsiteURL}
