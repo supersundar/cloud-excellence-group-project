@@ -13,22 +13,32 @@ Resources:
     Type: 'AWS::EC2::VPC'
     Properties:
       CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: CE-ProjectVPC
+
 
   PublicSubnet1:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref PubPrivateVPC
-      AvailabilityZone: us-east-2a
+#      AvailabilityZone: us-east-2a
       CidrBlock: 10.0.2.0/23
       MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Network
+          Value: Public
 
   PrivateSubnet1:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref PubPrivateVPC
-      AvailabilityZone: us-east-2a
+#      AvailabilityZone: us-east-2a
       CidrBlock: 10.0.0.0/26
       MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Network
+          Value: Public
 
   InternetGateway:
         Type: 'AWS::EC2::InternetGateway'
@@ -167,8 +177,19 @@ Outputs:
   PublicSubnetId:
     Value: !Ref PublicSubnet1
 
+  PublicAZs:
+    Value: !GetAtt
+      - PublicSubnet1
+      - "AvailabilityZone"
+
   PrivateSubnetId:
     Value: !Ref PrivateSubnet1
+
+  PrivateAZs:
+    Value: !GetAtt
+      - PublicSubnet1
+      - "AvailabilityZone"
+
 
   PrivateSecurityGroup:
     Value: !Ref PrivateSecurityGroup

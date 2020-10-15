@@ -22,23 +22,43 @@ Resources:
 #      TemplateURL: ./cf-beanstalk.yaml
 #      TimeoutInMinutes: '10'
 
-#  ECS:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: ./cf-ecs.yaml
-#      TimeoutInMinutes: '10'
+  ECS:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./cf-ecs.yaml
+      Parameters:
+        VpcId:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.VpcId
+        SubnetId:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.PrivateSubnetId
+        AZs:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.PrivateAZs
+      TimeoutInMinutes: '10'
 
-#  PrivateBashtionHost:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: ./cf-bashtion.yaml
-#      TimeoutInMinutes: '10'
-
-#  PrivateBashtionHost:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: ./cf-bashtion.yaml
-#      TimeoutInMinutes: '10'
+  PublicBastionHost:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./cf-bastion.yaml
+      Parameters:
+        VpcId:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.VpcId
+        SubnetId:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.PublicSubnetId
+        AZs:
+          Fn::GetAtt:
+            - VPC
+            - Outputs.PrivateAZs
+      TimeoutInMinutes: '10'
 
 
 Outputs:
@@ -48,13 +68,10 @@ Outputs:
     Value: !Sub ${VPC.Outputs.VpcId}
   PublicSubnetId:
     Value: !Sub ${VPC.Outputs.PublicSubnetId}
-
   PrivateSubnetId:
     Value: !Sub ${VPC.Outputs.PrivateSubnetId}
-
   PrivateSecurityGroup:
     Value: !Sub ${VPC.Outputs.PrivateSecurityGroup}
-
   PublicSecurityGroup:
     Value: !Sub ${VPC.Outputs.PublicSecurityGroup}
 
