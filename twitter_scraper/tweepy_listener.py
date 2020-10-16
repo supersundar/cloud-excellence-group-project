@@ -5,38 +5,33 @@ import tweepy
 import os
 import sys
 import time
-from textblob import TextBlob
 from decimal import Decimal
 from datetime import date,datetime,timedelta
 import traceback
-import cld3
 
 class TwitterStreamListener(tweepy.StreamListener):
 
-    def __init__(self, max_tweets_per_minute, sns_error_topic=None):
+    def __init__(self, max_tweets_per_minute, dynamo_table_name, dynamo_region, sns_error_topic=None, sns_region=None):
         super(TwitterStreamListener, self).__init__()
-        # self.current_file_name, self.current_path = self.new_paths()
-        # self.file_size = file_cutoff_size*1000000
-        # self.s3 = boto3.client('s3')
-        # self.s3_bucket = s3_bucket
-        # if not os.path.exists("./tweet_files"):
-        #     os.mkdir("./tweet_files")
+        
+        self.error_count = 0 # to help with restarting stream smoothly on error
+        
+        # SNS notifications
+        self.sns_error_topic = sns_error_topic
+        if self.sns_error_topic:
+            self.sns = boto3.resource('sns', region_name=sns_region)
+            self.topic = self.sns.Topic(sns_error_topic)
 
-        # if sns_error_topic:
-        #     self.sns = boto3.resource('sns', region_name='us-east-2')
-        #     self.topic = self.sns.Topic(sns_error_topic)
+        # Dynamo table for storing raw tweets
+        self.dynamo = boto3.resource('dynamodb', region_name=aws_region)
+        self.raw_tweet_table = self.dynamo.Table(dynamo_table_name)
 
-        self.last_updated_sysinfo = datetime.now()
-        self.update_sysinfo = False
-
-        self.error_count = 0
-
-        self.all_tweets = []
-
+        # rate limiting the Twitter stream to avoid heavy spending on downstream AWS services
         self.max_tweets_per_minute = max_tweets_per_minute
         self.curr_tweet_count = 0
         self.curr_minute = datetime.now()+timedelta(minutes=1)
 
+    # rate limiting the twitter stream
     def check_rate_limit(self):
         if self.curr_minute > datetime.now():
             if self.curr_tweet_count < self.max_tweets_per_minute:
@@ -54,14 +49,7 @@ class TwitterStreamListener(tweepy.StreamListener):
             self.curr_tweet_count += 1
             limited = self.check_rate_limit()
             if not limited:
-                self.all_tweets.append(tweet)
-                print(len(self.all_tweets))
-
-            # only update every 10 minutes just as a sanity check
-            if datetime.now() > self.last_updated_sysinfo + timedelta(minutes=10):
-                self.last_updated_sysinfo = datetime.now()
-                self.update_sysinfo = True
-                print("ready to update sysinfo")
+                self.raw_tweet_table.put_item(Item=tweet)
 
             self.error_count = 0
         except Exception as e:
@@ -69,7 +57,8 @@ class TwitterStreamListener(tweepy.StreamListener):
             self.error_count += 1
             if self.error_count > 3:
                 print("Hit three errors. Exiting.")
-                # self.topic.publish(Message=f"Hit 3 errors in a row in on_status\nScraper shutdown time = {datetime.now().strftime('%m/%d/%Y %H:%M:%S')}")
+                if self.sns_error_topic:
+                    self.topic.publish(Message=f"Hit 3 errors in a row in on_status\nScraper shutdown time = {datetime.now().strftime('%m/%d/%Y %H:%M:%S')}")
                 sys.exit()
 
     def on_error(self, status_code):
@@ -77,7 +66,8 @@ class TwitterStreamListener(tweepy.StreamListener):
             #returning False in on_error disconnects the stream
             self.error_count += 1
             if self.error_count > 3:
-                # self.topic.publish(Message=f"Had to retry 3 times\nStatus code = {status_code}\nScraper shutdown time = {datetime.now().strftime('%m/%d/%Y %H:%M:%S')}")
+                if self.sns_error_topic:
+                    self.topic.publish(Message=f"Had to retry 3 times\nStatus code = {status_code}\nScraper shutdown time = {datetime.now().strftime('%m/%d/%Y %H:%M:%S')}")
                 sys.exit()
             print(f"Hit https error, retry number at {self.retry_connect}")
             time.sleep(30*(2**self.retry_connect))
