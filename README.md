@@ -1,7 +1,9 @@
 # cloud-excellence-group-project
 
 
+
 ## Application Workflow
+
 
 1) ECS container has Python script that is streaming data using Twitter's streaming API.
 2) Streamed tweets get processed through lambda function.

@@ -20,8 +20,44 @@ Outputs:
     Value:
       Fn::Sub: ${VPC.Outputs.VpcId}
 Resources:
+  ECS:
+    Properties:
+      Parameters:
+        AZs:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.PrivateAZs
+        SubnetId:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.PrivateSubnetId
+        VpcId:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.VpcId
+      TemplateURL: https://s3.amazonaws.com/team1-cicd-pipeline-staging/d3e0d243136c688e1d85c6a65d92efd0.template
+      TimeoutInMinutes: '10'
+    Type: AWS::CloudFormation::Stack
+  PublicBastionHost:
+    Properties:
+      Parameters:
+        AZs:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.PrivateAZs
+        SubnetId:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.PublicSubnetId
+        VpcId:
+          Fn::GetAtt:
+          - VPC
+          - Outputs.VpcId
+      TemplateURL: https://s3.amazonaws.com/team1-cicd-pipeline-staging/8d4a1f7cfa2a534e0e3516aca17a7ecf.template
+      TimeoutInMinutes: '10'
+    Type: AWS::CloudFormation::Stack
   VPC:
     Properties:
-      TemplateURL: https://s3.amazonaws.com/team1-cicd-pipeline-staging/641ae65f7c1ac69489d856cc839913ad.template
+      TemplateURL: https://s3.amazonaws.com/team1-cicd-pipeline-staging/7d70958d81c9eeba3765c8cfe429cb77.template
       TimeoutInMinutes: '10'
     Type: AWS::CloudFormation::Stack
